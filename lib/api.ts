@@ -64,6 +64,10 @@ export function getDocumentStatus(
   return apiRequest(`/documents/${id}/status`, token);
 }
 
+export function deleteDocument(id: string, token: string): Promise<void> {
+  return apiRequest(`/documents/${id}`, token, { method: "DELETE" });
+}
+
 export function regenerateSummary(
   id: string,
   token: string,

@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowUpRight, FileText, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowUpRight, FileText, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 
 import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { StatusBadge } from "@/components/status-badge";
 import { UploadZone } from "@/components/upload-zone";
 import { useAuth } from "@/hooks/use-auth";
-import { getDocuments } from "@/lib/api";
+import { deleteDocument, getDocuments } from "@/lib/api";
 import { formatBytes, formatDate } from "@/lib/format";
 import type { DocumentRecord } from "@/lib/types";
 
@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadDocuments = useCallback(async () => {
     const token = session?.access_token;
@@ -32,6 +33,24 @@ export default function DashboardPage() {
       setFetching(false);
     }
   }, [session?.access_token]);
+
+  async function handleDelete(document: DocumentRecord) {
+    const token = session?.access_token;
+    if (!token || deletingId) return;
+    if (!window.confirm(`Delete "${document.filename}" and its summaries? This cannot be undone.`)) {
+      return;
+    }
+    setDeletingId(document.id);
+    setError(null);
+    try {
+      await deleteDocument(document.id, token);
+      setDocuments((current) => current.filter((item) => item.id !== document.id));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Could not delete document.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   useEffect(() => {
     if (!loading && !session) router.replace("/login");
@@ -108,6 +127,27 @@ export default function DashboardPage() {
                   </Link>
                   <StatusBadge status={document.status} />
                   <Link href={`/documents/${document.id}`} className="icon-button hidden sm:inline-grid" aria-label={`Open ${document.filename}`}><ArrowUpRight size={17} /></Link>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => void handleDelete(document)}
+                    disabled={
+                      deletingId !== null ||
+                      document.status === "queued" ||
+                      document.status === "extracting" ||
+                      document.status === "summarizing"
+                    }
+                    aria-label={`Delete ${document.filename}`}
+                    title={
+                      document.status === "queued" ||
+                      document.status === "extracting" ||
+                      document.status === "summarizing"
+                        ? "Wait for processing to finish before deleting"
+                        : "Delete document"
+                    }
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               ))}
             </div>
