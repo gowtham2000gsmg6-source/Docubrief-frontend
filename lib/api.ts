@@ -96,9 +96,16 @@ export function uploadDocument(
     });
 
     try {
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (!supabaseAnonKey) {
+        throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured.");
+      }
+
       await new Promise<void>((resolve, reject) => {
         const request = new XMLHttpRequest();
         request.open("PUT", preparation.upload_url);
+        request.setRequestHeader("apikey", supabaseAnonKey);
+        request.setRequestHeader("Authorization", `Bearer ${token}`);
         request.setRequestHeader(
           "Content-Type",
           file.type || "application/octet-stream",
@@ -115,7 +122,27 @@ export function uploadDocument(
             resolve();
             return;
           }
-          reject(new Error(`Storage upload failed (${request.status}).`));
+          let storageMessage: string | undefined;
+          try {
+            const response = JSON.parse(request.responseText) as {
+              message?: unknown;
+              error?: unknown;
+            };
+            if (typeof response.message === "string") {
+              storageMessage = response.message;
+            } else if (typeof response.error === "string") {
+              storageMessage = response.error;
+            }
+          } catch {
+            // Use the HTTP status when Storage does not return a JSON error.
+          }
+          reject(
+            new Error(
+              storageMessage
+                ? `Storage upload failed (${request.status}): ${storageMessage}`
+                : `Storage upload failed (${request.status}${request.statusText ? ` ${request.statusText}` : ""}).`,
+            ),
+          );
         };
         request.send(file);
       });

@@ -25,7 +25,13 @@ export default function SignupPage() {
     event.preventDefault();
     setError(null);
     setBusy(true);
-    const { data, error: authError } = await getSupabase().auth.signUp({ email, password });
+    const { data, error: authError } = await getSupabase().auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
     setBusy(false);
     if (authError) setError(authError.message);
     else if (data.session) router.replace("/dashboard");
