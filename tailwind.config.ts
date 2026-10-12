@@ -50,6 +50,9 @@ const config: Config = {
         card: "var(--radius-card)",
         panel: "var(--radius-panel)",
       },
+      backgroundImage: {
+        mesh: "var(--body-background)",
+      },
     },
   },
   plugins: [],

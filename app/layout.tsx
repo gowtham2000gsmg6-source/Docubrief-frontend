@@ -22,6 +22,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${inter.className}`}>
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(122,92,248,0.14),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(103,156,255,0.12),transparent_28%)]" />
         <Providers>
           <AppHeader />
           {children}
