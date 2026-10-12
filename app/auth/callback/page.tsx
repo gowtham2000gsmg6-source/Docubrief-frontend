@@ -15,6 +15,7 @@ export default function AuthCallbackPage() {
 
     async function completeSignIn() {
       const params = new URLSearchParams(window.location.search);
+      const next = params.get("next") === "/reset-password" ? "/reset-password" : "/dashboard";
       const authError = params.get("error_description") ?? params.get("error");
       if (authError) {
         if (active) setError(authError.replace(/\+/g, " "));
@@ -38,7 +39,7 @@ export default function AuthCallbackPage() {
         }
       }
 
-      if (active) router.replace("/dashboard");
+      if (active) router.replace(next);
     }
 
     completeSignIn().catch((callbackError: unknown) => {

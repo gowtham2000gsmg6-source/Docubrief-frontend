@@ -47,6 +47,11 @@ export default function LoginPage() {
             <label htmlFor="password" className="auth-label">Password</label>
             <input id="password" className="auth-input" type="password" autoComplete="current-password" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} />
           </div>
+          <div className="-mt-2 text-right">
+            <Link href="/forgot-password" className="text-sm font-semibold text-brand-600 hover:underline">
+              Forgot password?
+            </Link>
+          </div>
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="button-primary w-full" type="submit" disabled={busy}>
             {busy ? <LoaderCircle size={17} className="animate-spin" /> : <>Sign in <ArrowRight size={16} /></>}
