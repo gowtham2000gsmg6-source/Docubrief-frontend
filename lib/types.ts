@@ -36,3 +36,20 @@ export interface DocumentDetail extends DocumentRecord {
   extracted_text: string | null;
   summaries: Summary[];
 }
+
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correct_answer: string;
+  explanation: string;
+}
+
+export interface QuizResponse {
+  title: string;
+  questions: QuizQuestion[];
+}
+
+export interface AskDocumentResponse {
+  answer: string;
+  source_excerpt: string | null;
+}

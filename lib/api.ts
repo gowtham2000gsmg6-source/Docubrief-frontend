@@ -79,6 +79,24 @@ export function regenerateSummary(
   });
 }
 
+export function generateDocumentQuiz(
+  id: string,
+  token: string,
+): Promise<{ title: string; questions: Array<{ question: string; options: string[]; correct_answer: string; explanation: string }> }> {
+  return apiRequest(`/documents/${id}/quiz`, token, { method: "POST" });
+}
+
+export function askDocumentQuestion(
+  id: string,
+  token: string,
+  question: string,
+): Promise<{ answer: string; source_excerpt: string | null }> {
+  return apiRequest(`/documents/${id}/ask`, token, {
+    method: "POST",
+    body: JSON.stringify({ question }),
+  });
+}
+
 export function uploadDocument(
   file: File,
   token: string,

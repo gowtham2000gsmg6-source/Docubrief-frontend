@@ -2,17 +2,17 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Check, Clipboard, Download, FileText, LoaderCircle, RefreshCw, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { ArrowLeft, Check, Clipboard, Download, FileQuestion, FileText, LoaderCircle, MessageSquareText, RefreshCw, Send, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 import { LoadingSkeleton } from "@/components/loading-skeleton";
 import { StatusBadge } from "@/components/status-badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useDocumentPolling } from "@/hooks/use-document-polling";
-import { getDocument, regenerateSummary } from "@/lib/api";
+import { askDocumentQuestion, generateDocumentQuiz, getDocument, regenerateSummary } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
-import type { DocumentDetail, SummaryStyle } from "@/lib/types";
+import type { AskDocumentResponse, DocumentDetail, QuizResponse, SummaryStyle } from "@/lib/types";
 
 const STYLES: SummaryStyle[] = ["Brief", "Detailed", "Bullet points"];
 
@@ -27,6 +27,13 @@ export default function DocumentDetailPage() {
   const [style, setStyle] = useState<SummaryStyle>("Brief");
   const [regenerating, setRegenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [quiz, setQuiz] = useState<QuizResponse | null>(null);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizError, setQuizError] = useState<string | null>(null);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [chatReply, setChatReply] = useState<AskDocumentResponse | null>(null);
   const token = session?.access_token;
   const shouldPoll = Boolean(token && detail && (detail.status === "queued" || detail.status === "extracting" || detail.status === "summarizing" || regenerating));
   const { document: polledDocument, error: pollingError } = useDocumentPolling(id, token, shouldPoll);
@@ -72,6 +79,37 @@ export default function DocumentDetailPage() {
     } catch (regenerateError) {
       setRegenerating(false);
       setError(regenerateError instanceof Error ? regenerateError.message : "Could not regenerate summary.");
+    }
+  }
+
+  async function handleGenerateQuiz() {
+    if (!token || !detail?.extracted_text) return;
+    setQuizLoading(true);
+    setQuizError(null);
+    try {
+      const result = await generateDocumentQuiz(id, token);
+      setQuiz(result);
+    } catch (generateError) {
+      setQuizError(generateError instanceof Error ? generateError.message : "Could not generate a quiz for this document.");
+    } finally {
+      setQuizLoading(false);
+    }
+  }
+
+  async function handleAskQuestion(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !detail?.extracted_text || !chatInput.trim()) return;
+    setChatLoading(true);
+    setChatError(null);
+    setChatReply(null);
+    try {
+      const result = await askDocumentQuestion(id, token, chatInput.trim());
+      setChatReply(result);
+      setChatInput("");
+    } catch (askError) {
+      setChatError(askError instanceof Error ? askError.message : "Could not answer your question.");
+    } finally {
+      setChatLoading(false);
     }
   }
 
@@ -176,7 +214,10 @@ export default function DocumentDetailPage() {
 
       <section className="section-card mt-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div><h2 className="section-heading">Summary style</h2><p className="section-caption">Generate a new version without re-uploading the document.</p></div>
+          <div>
+            <h2 className="section-heading">Summary style</h2>
+            <p className="section-caption">Generate a new version without re-uploading the document.</p>
+          </div>
           <div className="flex items-center gap-2">
             <select className="select-field" value={style} onChange={(event) => setStyle(event.target.value as SummaryStyle)} aria-label="Summary style">
               {STYLES.map((item) => <option key={item}>{item}</option>)}
@@ -187,6 +228,82 @@ export default function DocumentDetailPage() {
             </button>
           </div>
         </div>
+      </section>
+
+      <section className="section-card mt-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="section-heading">AI study tools</h2>
+            <p className="section-caption">Turn the uploaded document into a quick quiz or ask for details on any topic.</p>
+          </div>
+          <button type="button" className="button-secondary" onClick={() => void handleGenerateQuiz()} disabled={quizLoading || !detail.extracted_text}>
+            {quizLoading ? <LoaderCircle size={16} className="animate-spin" /> : <FileQuestion size={15} />}
+            {quizLoading ? "Generating…" : "Generate quiz"}
+          </button>
+        </div>
+
+        {quizError && <p className="form-error mt-4" role="alert">{quizError}</p>}
+
+        {quiz && (
+          <div className="mt-5 space-y-4">
+            <h3 className="text-lg font-semibold text-ink dark:text-white">{quiz.title}</h3>
+            {quiz.questions.map((item, index) => (
+              <div key={`${item.question}-${index}`} className="quiz-card">
+                <p className="quiz-question">{index + 1}. {item.question}</p>
+                <ul className="quiz-options">
+                  {item.options.map((option) => (
+                    <li key={`${item.question}-${option}`} className={`quiz-option ${option === item.correct_answer ? "quiz-option--correct" : ""}`}>
+                      {option}
+                    </li>
+                  ))}
+                </ul>
+                <div className="quiz-answer">
+                  <strong>Correct answer:</strong> {item.correct_answer}
+                </div>
+                <p className="quiz-explanation">{item.explanation}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="section-card mt-5">
+        <div className="flex items-center gap-2">
+          <MessageSquareText size={17} className="text-brand-600" />
+          <h2 className="section-heading">Ask about this document</h2>
+        </div>
+
+        <form onSubmit={handleAskQuestion} className="mt-4 space-y-4">
+          <textarea
+            className="auth-input min-h-[110px] resize-none"
+            value={chatInput}
+            onChange={(event) => setChatInput(event.target.value)}
+            placeholder="Ask for details about a topic, concept, summary, or action item…"
+            aria-label="Ask a question about this document"
+          />
+          <div className="flex justify-end">
+            <button type="submit" className="button-primary" disabled={chatLoading || !detail.extracted_text || !chatInput.trim()}>
+              {chatLoading ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={15} />}
+              {chatLoading ? "Asking…" : "Ask"}
+            </button>
+          </div>
+        </form>
+
+        {chatError && <p className="form-error mt-4" role="alert">{chatError}</p>}
+
+        {chatReply && (
+          <div className="assistant-panel mt-5">
+            <div className="assistant-message">
+              <p>{chatReply.answer}</p>
+            </div>
+            {chatReply.source_excerpt && (
+              <div className="assistant-source">
+                <span className="assistant-source-label">Source excerpt</span>
+                <p>{chatReply.source_excerpt}</p>
+              </div>
+            )}
+          </div>
+        )}
       </section>
     </main>
   );

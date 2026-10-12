@@ -355,6 +355,49 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .progress-fill { height: 100%; border-radius: inherit; background: var(--progress-gradient); box-shadow: var(--progress-glow); transition: width 200ms ease; }
 .form-error { display: flex; align-items: flex-start; gap: 7px; border: 1px solid var(--error-border); border-radius: var(--radius-control); background: var(--error-surface); padding: 10px 12px; color: var(--error); font-size: 13px; }
 
+.quiz-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 18px;
+  box-shadow: var(--shadow-raised);
+}
+.quiz-question { margin: 0 0 12px; color: var(--foreground); font-size: 15px; font-weight: 700; }
+.quiz-options { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.quiz-option {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-soft);
+  padding: 10px 12px;
+  color: var(--foreground);
+}
+.quiz-option--correct { border-color: rgba(55, 136, 96, 0.32); background: rgba(86, 180, 133, 0.14); color: var(--success); }
+.quiz-answer { margin-top: 12px; color: var(--foreground); font-size: 13px; }
+.quiz-explanation { margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+
+.assistant-panel {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  background: var(--surface-soft);
+  padding: 16px;
+  box-shadow: var(--shadow-glass);
+}
+.assistant-message {
+  border-radius: var(--radius-control);
+  background: linear-gradient(135deg, rgba(122, 92, 248, 0.08), rgba(103, 156, 255, 0.06));
+  padding: 14px 16px;
+  color: var(--foreground);
+  line-height: 1.7;
+}
+.assistant-source {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.assistant-source-label { display: block; margin-bottom: 6px; color: var(--foreground); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+
 .document-row { display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--line); padding: 16px 8px; transition: background 200ms ease; }
 .document-row:hover { border-radius: var(--radius-md); background: var(--row-hover); }
 .document-row:last-child { border-bottom: 0; padding-bottom: 2px; }
