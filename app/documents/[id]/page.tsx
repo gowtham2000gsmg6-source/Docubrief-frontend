@@ -28,6 +28,7 @@ export default function DocumentDetailPage() {
   const [regenerating, setRegenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [quiz, setQuiz] = useState<QuizResponse | null>(null);
+  const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({});
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizError, setQuizError] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState("");
@@ -37,6 +38,11 @@ export default function DocumentDetailPage() {
   const token = session?.access_token;
   const shouldPoll = Boolean(token && detail && (detail.status === "queued" || detail.status === "extracting" || detail.status === "summarizing" || regenerating));
   const { document: polledDocument, error: pollingError } = useDocumentPolling(id, token, shouldPoll);
+  const answeredQuizQuestions = Object.keys(quizAnswers).length;
+  const correctQuizAnswers = quiz?.questions.reduce(
+    (total, question, index) => total + (quizAnswers[index] === question.correct_answer ? 1 : 0),
+    0,
+  ) ?? 0;
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -89,6 +95,7 @@ export default function DocumentDetailPage() {
     try {
       const result = await generateDocumentQuiz(id, token);
       setQuiz(result);
+      setQuizAnswers({});
     } catch (generateError) {
       setQuizError(generateError instanceof Error ? generateError.message : "Could not generate a quiz for this document.");
     } finally {
@@ -246,21 +253,83 @@ export default function DocumentDetailPage() {
 
         {quiz && (
           <div className="mt-5 space-y-4">
-            <h3 className="text-lg font-semibold text-ink dark:text-white">{quiz.title}</h3>
+            <div className="quiz-overview">
+              <div>
+                <h3 className="text-lg font-semibold text-ink dark:text-white">{quiz.title}</h3>
+                <p className="quiz-progress-label">
+                  {answeredQuizQuestions === quiz.questions.length
+                    ? `Quiz complete · ${correctQuizAnswers} of ${quiz.questions.length} correct`
+                    : `${answeredQuizQuestions} of ${quiz.questions.length} answered`}
+                </p>
+              </div>
+              {answeredQuizQuestions > 0 && (
+                <button type="button" className="button-quiet" onClick={() => setQuizAnswers({})}>
+                  Restart quiz
+                </button>
+              )}
+            </div>
+            <div
+              className="progress-track quiz-progress-track"
+              role="progressbar"
+              aria-label="Quiz progress"
+              aria-valuemin={0}
+              aria-valuemax={quiz.questions.length}
+              aria-valuenow={answeredQuizQuestions}
+            >
+              <div
+                className="progress-fill"
+                style={{ width: `${quiz.questions.length ? (answeredQuizQuestions / quiz.questions.length) * 100 : 0}%` }}
+              />
+            </div>
             {quiz.questions.map((item, index) => (
               <div key={`${item.question}-${index}`} className="quiz-card">
                 <p className="quiz-question">{index + 1}. {item.question}</p>
+                <p className="quiz-instruction">
+                  {quizAnswers[index] === undefined ? "Choose the best answer." : "Your answer has been recorded."}
+                </p>
                 <ul className="quiz-options">
-                  {item.options.map((option) => (
-                    <li key={`${item.question}-${option}`} className={`quiz-option ${option === item.correct_answer ? "quiz-option--correct" : ""}`}>
-                      {option}
-                    </li>
-                  ))}
+                  {item.options.map((option, optionIndex) => {
+                    const selectedAnswer = quizAnswers[index];
+                    const hasAnswered = selectedAnswer !== undefined;
+                    const isCorrectOption = option === item.correct_answer;
+                    const isSelectedOption = selectedAnswer === option;
+                    const optionClass = [
+                      "quiz-option",
+                      hasAnswered && isCorrectOption ? "quiz-option--correct" : "",
+                      hasAnswered && isSelectedOption && !isCorrectOption ? "quiz-option--incorrect" : "",
+                    ].filter(Boolean).join(" ");
+
+                    return (
+                      <li key={`${item.question}-${optionIndex}`}>
+                        <button
+                          type="button"
+                          className={optionClass}
+                          onClick={() => setQuizAnswers((current) => ({ ...current, [index]: option }))}
+                          disabled={hasAnswered}
+                          aria-pressed={isSelectedOption}
+                        >
+                          <span>{option}</span>
+                          {hasAnswered && isCorrectOption && <span className="quiz-option-indicator">Correct</span>}
+                          {hasAnswered && isSelectedOption && !isCorrectOption && <span className="quiz-option-indicator">Your answer</span>}
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
-                <div className="quiz-answer">
-                  <strong>Correct answer:</strong> {item.correct_answer}
-                </div>
-                <p className="quiz-explanation">{item.explanation}</p>
+                {quizAnswers[index] !== undefined && (
+                  <div
+                    className={`quiz-feedback ${quizAnswers[index] === item.correct_answer ? "quiz-feedback--correct" : "quiz-feedback--incorrect"}`}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <strong>
+                      {quizAnswers[index] === item.correct_answer
+                        ? "Correct! Here's why:"
+                        : <>Not quite. The correct answer is <span>{item.correct_answer}</span>. Here's why:</>}
+                    </strong>
+                    <p className="quiz-explanation">{item.explanation}</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
